@@ -1,0 +1,142 @@
+# Loading necessary libraries ---------------------------------------------
+library(readxl)
+library(tidyverse)
+library(corrgram)
+library(corrplot)
+library(RColorBrewer)
+library(maps)
+library(mapproj)
+library(socviz)
+library(ggpmisc)
+library(ggpubr)
+
+# Reading in dataset ------------------------------------------------------
+Howe_2016_data <- read_csv("Downloads/Howe_2016-data.csv")
+
+# Corrgram for exploratory choices ----------------------------------------
+
+#Selecting numeric only columns for correlation matrix
+Howe_numeric <- select(Howe_2016_data, -1, -2, -3)
+
+#Creating correlation matrix
+R <- cor(Howe_numeric, use = "complete.obs")
+
+#Plotting corrgram 
+corrplot(R, type="upper", order="hclust",
+         col=brewer.pal(n=8, name="RdYlBu"))
+
+# US election results by state --------------------------------------------
+#This section maps the 2016 US election results by state. A large part of it 
+#was adapted from (cite). In-line comments explaining the code are added for 
+#ease of understanding (both my future self's and whoever I share this code with)
+
+#Creating map theme functions to use later for smoothing of map and grid lines.
+#Function borrowed from (cite)
+theme_map <- function(base_size=9, base_family="") {
+  require(grid)
+  theme_bw(base_size=base_size, base_family=base_family) %+replace%
+    theme(axis.line=element_blank(),
+          axis.text=element_blank(),
+          axis.ticks=element_blank(),
+          axis.title=element_blank(),
+          panel.background=element_blank(),
+          panel.border=element_blank(),
+          panel.grid=element_blank(),
+          panel.spacing=unit(0, "lines"),
+          plot.background=element_blank(),
+          legend.justification = c(0,0),
+          legend.position = c(0,0)
+    )
+}
+
+#Setting up data frame to be organized by the information needed (namely, states)
+us_states <- map_data("state")
+
+#Merging election data frame with map wire frame. Note state names were modified to
+#be written in lower case so that the variables match across data frames and the 
+#merge is possible
+election$region <- tolower(election$state)
+us_states_elec <- left_join(us_states, election)
+
+#Setting colors for each party (Blue Democrats and Red Republicans)
+party_colors <- c("#2E74C0", "#CB454A") 
+
+#Plotting the election data, using specified party colors, onto the map.
+#Here we use (p, p0, p1, p2) to facilitate readability and keep track of each
+#modification added to the map, following Kosslyn's principles of chunking and 
+#laying foundation materials first from the #scienceoflearning. 
+#The Albers projection was chosen since we are only focusing on the US, not global map
+p0 <- ggplot(data = us_states_elec,
+             mapping = aes(x = long, y = lat,
+                           group = group, fill = party))
+
+p1 <- p0 + geom_polygon(color = "gray90", size = 0.1) +
+  coord_map(projection = "albers", lat0 = 39, lat1 = 45) 
+
+p2 <- p1 + scale_fill_manual(values = party_colors) +
+  labs(title = "Election Results 2016", fill = NULL)
+
+p2 + theme_map()
+
+
+# Howe (2016) data on US map ----------------------------------------------
+
+#Setting up map frame
+us_states <- map_data("state")
+
+#Filtering data by state, dropping counties
+howe_by_state <- filter(Howe_2016_data, GeoType == "State")
+
+#Wrangling the data to ensure merge is possible (making state names lower case)
+howe_by_state$region <- tolower(howe_by_state$GeoName)
+
+#Merging the data into one data frame
+howe_map_merged <- left_join(us_states, howe_by_state)
+
+#Plotting the Howe (2016) data onto map.
+#Here we use (p, p0, p1, p2) to facilitate readability and keep track of each
+#modification added to the map, following Kosslyn's principles of chunking and 
+#laying foundation materials first in the #scienceoflearning
+
+p0 <- ggplot(data = howe_map_merged,
+             mapping = aes(x = long, y = lat,
+                           group = group, 
+                           fill = mediaweeklyOppose, 
+                           color = qsec))
+
+p1 <- p0 + geom_polygon(color = "gray90", size = 0.1) +
+  coord_map(projection = "albers", lat0 = 39, lat1 = 45) 
+
+p2 <- p1 + scale_fill_gradient(low="#2E74C0", high="#CB454A") +
+  labs(title = "Map showing percentage of people by state with infrequent climate change media exposure",
+       fill = "% with infrequent \n media exposure")
+
+p2 + theme_map()
+
+
+# Correlation plots -------------------------------------------------------
+
+#Merging Howe (2016) and election data frames into one
+howe_election_merged <- left_join(election, howe_by_state)
+
+#Specifying correlation formula
+my.formula <- y ~ x
+
+#Plotting scatter plot of election results (Percentage that voted for Trump per state)
+#against percentage per state who hear about global warming in the media infrequently
+ggplot(data = howe_election_merged, 
+       mapping = aes(x = pct_trump, y = mediaweeklyOppose)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  stat_cor(aes(label = ..r.label..), label.x = 3) +
+  labs(x = "Percentage of population that voted for Trump", 
+       y = "Estimated percentage of population who hear about \n global warming in the media several times \n a year or less often")
+
+
+ggplot(data = howe_election_merged, 
+       mapping = aes(x = pct_trump, y = happeningOppose)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  stat_cor(aes(label = ..r.label..), label.x = 3) +
+  labs(x = "Percentage of population that voted for Trump",
+       y = "Estimated percentage who do not think that global warming is happening")
