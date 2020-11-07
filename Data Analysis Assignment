@@ -27,11 +27,11 @@ corrplot(R, type="upper", order="hclust",
 
 # US election results by state --------------------------------------------
 #This section maps the 2016 US election results by state. A large part of it 
-#was adapted from (cite). In-line comments explaining the code are added for 
+#was adapted from Healy (2018). In-line comments explaining the code are added for 
 #ease of understanding (both my future self's and whoever I share this code with)
 
-#Creating map theme functions to use later for smoothing of map and grid lines.
-#Function borrowed from (cite)
+#Creating map theme function to use later for smoothing of map and grid lines.
+#Function borrowed from Healy (2018)
 theme_map <- function(base_size=9, base_family="") {
   require(grid)
   theme_bw(base_size=base_size, base_family=base_family) %+replace%
